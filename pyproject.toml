@@ -1,0 +1,9 @@
+[project]
+name = "jarvis"
+version = "0.1.0"
+description = "J.A.R.V.I.S. — a modular personal AI assistant"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+jarvis = "jarvis.__main__:main"
