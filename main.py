@@ -1,17 +1,18 @@
-"""J.A.R.V.I.S. v0.2 — deterministic brain + explicit tool routing."""
+"""J.A.R.V.I.S. — Home Base + deterministic brain + explicit tool routing."""
 
 from __future__ import annotations
 
 import argparse
 
 from jarvis.brain import Brain
+from jarvis.homebase import HomeBase, HomeBaseError
 from jarvis.router import Router
 from jarvis.tools import get_date, get_time, system_status
 from jarvis.voice import VoiceInterface, VoiceUnavailable
 
 
-def build_router() -> Router:
-    router = Router()
+def build_router(homebase: HomeBase) -> Router:
+    router = Router(homebase)
     router.register("time", "Show the current time", get_time, aliases=("clock",))
     router.register("date", "Show today's date", get_date, aliases=("day",))
     router.register("status", "Show assistant status", system_status, aliases=("health",))
@@ -34,9 +35,9 @@ def handle_command(router: Router, brain: Brain, command: str) -> tuple[str, boo
     return router.route(command), True
 
 
-def run_text(router: Router, brain: Brain) -> None:
-    print("J.A.R.V.I.S. v0.2 — online")
-    print("Text mode. Try natural language, 'help', or 'exit'.")
+def run_text(router: Router, brain: Brain, homebase: HomeBase) -> None:
+    print(f"{homebase.assistant_name()} — online")
+    print("Home Base: loaded | Text mode. Try natural language, 'help', or 'exit'.")
 
     while True:
         try:
@@ -51,9 +52,9 @@ def run_text(router: Router, brain: Brain) -> None:
             return
 
 
-def run_voice(router: Router, brain: Brain) -> None:
+def run_voice(router: Router, brain: Brain, homebase: HomeBase) -> None:
     voice = VoiceInterface()
-    voice.speak("J.A.R.V.I.S. online.")
+    voice.speak(f"{homebase.assistant_name()} online. Home Base loaded.")
 
     while True:
         try:
@@ -82,18 +83,24 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    router = build_router()
+    try:
+        homebase = HomeBase.load()
+    except HomeBaseError as exc:
+        print(f"Home Base error: {exc}")
+        return
+
+    router = build_router(homebase)
     brain = Brain()
 
     if args.voice:
         try:
-            run_voice(router, brain)
+            run_voice(router, brain, homebase)
         except VoiceUnavailable as exc:
             print(f"Voice mode unavailable: {exc}")
             print("Falling back to text mode.")
-            run_text(router, brain)
+            run_text(router, brain, homebase)
     else:
-        run_text(router, brain)
+        run_text(router, brain, homebase)
 
 
 if __name__ == "__main__":
