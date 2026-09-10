@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 
 from jarvis.brain import Brain
+from jarvis.control import HomeControl
 from jarvis.homebase import HomeBase, HomeBaseError
 from jarvis.router import Router
 from jarvis.tools import get_date, get_time, system_status
@@ -19,25 +20,36 @@ def build_router(homebase: HomeBase) -> Router:
     return router
 
 
-def handle_command(router: Router, brain: Brain, command: str) -> tuple[str, bool]:
+def handle_command(
+    router: Router,
+    brain: Brain,
+    home_control: HomeControl,
+    command: str,
+) -> tuple[str, bool]:
     normalized = command.strip().lower()
     if normalized in {"exit", "quit", "goodbye", "shutdown jarvis"}:
         return "Standing by.", False
     if normalized == "help":
-        return router.help_text(), True
+        return router.help_text() + "\n\n" + home_control.help_text(), True
+
+    # Home Base is a separate control plane. Only commands declared in
+    # homebase/commands.json reach it; arbitrary shell commands are never passed through.
+    if normalized == "home" or normalized.startswith("home "):
+        home_command = normalized.removeprefix("home").strip()
+        return home_control.execute(home_command), True
 
     understood = brain.understand(command)
     if understood is not None:
         if understood.command == "help":
-            return router.help_text(), True
+            return router.help_text() + "\n\n" + home_control.help_text(), True
         command = brain.normalize(command)
 
     return router.route(command), True
 
 
-def run_text(router: Router, brain: Brain, homebase: HomeBase) -> None:
+def run_text(router: Router, brain: Brain, home_control: HomeControl, homebase: HomeBase) -> None:
     print(f"{homebase.assistant_name()} — online")
-    print("Home Base: loaded | Text mode. Try natural language, 'help', or 'exit'.")
+    print("Home Base: loaded | Text mode. Try 'home status', 'help', or 'exit'.")
 
     while True:
         try:
@@ -46,13 +58,13 @@ def run_text(router: Router, brain: Brain, homebase: HomeBase) -> None:
             print("\nJ.A.R.V.I.S. > Session ended.")
             return
 
-        response, keep_running = handle_command(router, brain, command)
+        response, keep_running = handle_command(router, brain, home_control, command)
         print(f"J.A.R.V.I.S. > {response}")
         if not keep_running:
             return
 
 
-def run_voice(router: Router, brain: Brain, homebase: HomeBase) -> None:
+def run_voice(router: Router, brain: Brain, home_control: HomeControl, homebase: HomeBase) -> None:
     voice = VoiceInterface()
     voice.speak(f"{homebase.assistant_name()} online. Home Base loaded.")
 
@@ -67,7 +79,7 @@ def run_voice(router: Router, brain: Brain, homebase: HomeBase) -> None:
             continue
 
         print(f"You > {command}")
-        response, keep_running = handle_command(router, brain, command)
+        response, keep_running = handle_command(router, brain, home_control, command)
         print(f"J.A.R.V.I.S. > {response}")
         voice.speak(response)
         if not keep_running:
@@ -85,6 +97,7 @@ def main() -> None:
 
     try:
         homebase = HomeBase.load()
+        home_control = HomeControl(homebase)
     except HomeBaseError as exc:
         print(f"Home Base error: {exc}")
         return
@@ -94,13 +107,13 @@ def main() -> None:
 
     if args.voice:
         try:
-            run_voice(router, brain, homebase)
+            run_voice(router, brain, home_control, homebase)
         except VoiceUnavailable as exc:
             print(f"Voice mode unavailable: {exc}")
             print("Falling back to text mode.")
-            run_text(router, brain, homebase)
+            run_text(router, brain, home_control, homebase)
     else:
-        run_text(router, brain, homebase)
+        run_text(router, brain, home_control, homebase)
 
 
 if __name__ == "__main__":
