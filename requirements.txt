@@ -1,3 +1,7 @@
 # J.A.R.V.I.S. v0.1
 # Core currently uses only the Python standard library.
-# Voice and computer-control dependencies will be added in later phases.
+# Optional voice stack:
+SpeechRecognition>=3.10,<4
+pyttsx3>=2.90,<3
+# PyAudio is platform/audio-backend dependent and will be handled separately.
+# PyAutoGUI, BeautifulSoup, and Selenium are intentionally NOT installed yet.
