@@ -1,0 +1,31 @@
+{
+  "home_base_version": "1.0",
+  "assistant": {
+    "name": "J.A.R.V.I.S.",
+    "mode": "local-first",
+    "status": "development"
+  },
+  "capabilities": {
+    "voice": true,
+    "ai_brain": true,
+    "computer_control": false,
+    "web_access": false,
+    "browser_automation": false,
+    "memory": false,
+    "multi_device": false
+  },
+  "safety": {
+    "allow_arbitrary_shell": false,
+    "require_confirmation_for_control_tools": true,
+    "allowlisted_apps_only": true,
+    "secrets_in_repository": false
+  },
+  "planned_modules": [
+    "computer",
+    "web",
+    "browser",
+    "memory",
+    "system",
+    "devices"
+  ]
+}
