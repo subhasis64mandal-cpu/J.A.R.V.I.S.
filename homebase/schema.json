@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "J.A.R.V.I.S. Home Base",
+  "type": "object",
+  "required": ["home_base_version", "assistant", "capabilities", "safety", "planned_modules"],
+  "properties": {
+    "home_base_version": {"type": "string"},
+    "assistant": {
+      "type": "object",
+      "required": ["name", "mode", "status"],
+      "properties": {
+        "name": {"type": "string"},
+        "mode": {"type": "string"},
+        "status": {"type": "string"}
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": {"type": "boolean"}
+    },
+    "safety": {
+      "type": "object",
+      "required": [
+        "allow_arbitrary_shell",
+        "require_confirmation_for_control_tools",
+        "allowlisted_apps_only",
+        "secrets_in_repository"
+      ],
+      "properties": {
+        "allow_arbitrary_shell": {"type": "boolean"},
+        "require_confirmation_for_control_tools": {"type": "boolean"},
+        "allowlisted_apps_only": {"type": "boolean"},
+        "secrets_in_repository": {"type": "boolean"}
+      }
+    },
+    "planned_modules": {
+      "type": "array",
+      "items": {"type": "string"}
+    }
+  }
+}
