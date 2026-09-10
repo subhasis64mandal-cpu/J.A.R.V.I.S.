@@ -1,0 +1,15 @@
+{
+  "version": "1.0",
+  "commands": {
+    "status": {
+      "action": "report_status",
+      "enabled": true,
+      "description": "Report Home Base and capability state"
+    },
+    "capabilities": {
+      "action": "report_capabilities",
+      "enabled": true,
+      "description": "List configured J.A.R.V.I.S. capabilities"
+    }
+  }
+}
