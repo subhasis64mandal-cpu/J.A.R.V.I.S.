@@ -1,0 +1,1 @@
+Safe capability wave complete. Read-only system, file, and web adapters are implemented behind explicit routes and bounded inputs. Computer, browser, and device control remain staged.
