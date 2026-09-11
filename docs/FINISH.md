@@ -1,0 +1,1 @@
+This branch contains the safe read-only capability wave and supporting architecture documentation. Higher-risk adapters remain staged.
