@@ -1,6 +1,10 @@
-"""Small, safe built-in tools for the first J.A.R.V.I.S. version."""
+"""Safe built-in tools for the first J.A.R.V.I.S. version."""
 
 from datetime import datetime
+
+from jarvis.filetools import file_list, file_read
+from jarvis.systemtools import system_info
+from jarvis.webtools import web_get
 
 
 def get_time(_: str = "") -> str:
@@ -12,4 +16,15 @@ def get_date(_: str = "") -> str:
 
 
 def system_status(_: str = "") -> str:
-    return "Core status: online. Tool router: online. External tools: not configured yet."
+    return "Core status: online. Tool router: online. Home Base: online. Read-only capabilities: web, files, system."
+
+
+__all__ = [
+    "file_list",
+    "file_read",
+    "get_date",
+    "get_time",
+    "system_info",
+    "system_status",
+    "web_get",
+]
