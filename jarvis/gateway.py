@@ -8,6 +8,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Lock, Thread
 from typing import Callable
 
+from jarvis.capabilities import CapabilityCatalog
 from jarvis.events import EventBus, JarvisEvent
 
 
@@ -24,6 +25,7 @@ class HomeBaseGateway:
         self._server: ThreadingHTTPServer | None = None
         self._thread: Thread | None = None
         self._state = "idle"
+        self._catalog = CapabilityCatalog.load()
         events.subscribe("assistant.state", self._on_event)
 
     @property
@@ -69,6 +71,9 @@ class HomeBaseGateway:
             def do_GET(self) -> None:  # noqa: N802
                 if self.path == "/state":
                     self._json(HTTPStatus.OK, {"state": gateway._state})
+                    return
+                if self.path == "/capabilities":
+                    self._json(HTTPStatus.OK, gateway._catalog.as_dict())
                     return
                 if self.path != "/events":
                     self._json(HTTPStatus.NOT_FOUND, {"error": "not found"})
