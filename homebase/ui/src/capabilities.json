@@ -1,0 +1,9 @@
+{
+  "readOnly": ["system", "files", "web"],
+  "planned": ["computer", "browser", "devices"],
+  "policy": {
+    "arbitraryShell": false,
+    "arbitraryPython": false,
+    "loopbackGateway": true
+  }
+}
