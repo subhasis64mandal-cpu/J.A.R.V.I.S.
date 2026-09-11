@@ -1,0 +1,1 @@
+Current active capabilities: system diagnostics, workspace-scoped read/list, bounded HTTP(S) retrieval, time/date/status and explicit memory commands. Higher-risk browser, computer and device control remain staged behind policy.
