@@ -1,0 +1,1 @@
+Read-only system, file, and web capabilities are implemented behind explicit routes and bounded inputs. Browser, computer, and device control remain staged.
