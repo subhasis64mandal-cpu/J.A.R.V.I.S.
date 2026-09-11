@@ -1,0 +1,1 @@
+This wave implements safe read-only capabilities and supporting contracts. Future high-risk adapters remain gated.
