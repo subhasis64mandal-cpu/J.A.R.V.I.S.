@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 import subprocess
 from dataclasses import dataclass
+from pathlib import Path
 from urllib.parse import quote_plus
 
 
@@ -32,6 +33,23 @@ def list_approved_apps(_: str = "") -> str:
     return ", ".join(sorted(APPROVED_APPS))
 
 
+def _edge_candidates() -> tuple[Path, ...]:
+    candidates: list[Path] = []
+    for variable in ("PROGRAMFILES", "PROGRAMFILES(X86)", "LOCALAPPDATA"):
+        root = os.environ.get(variable)
+        if not root:
+            continue
+        candidates.append(Path(root) / "Microsoft" / "Edge" / "Application" / "msedge.exe")
+    return tuple(candidates)
+
+
+def _edge_executable() -> str:
+    for candidate in _edge_candidates():
+        if candidate.is_file():
+            return str(candidate)
+    return "msedge.exe"
+
+
 def open_approved_app(name: str) -> str:
     key = name.strip().lower()
     app = APPROVED_APPS.get(key)
@@ -39,7 +57,8 @@ def open_approved_app(name: str) -> str:
         raise ValueError(f"App is not allowlisted: {name}")
     if os.name != "nt":
         raise RuntimeError("Approved desktop app launching currently requires Windows.")
-    subprocess.Popen([app.executable], close_fds=True)
+    executable = _edge_executable() if key == "edge" else app.executable
+    subprocess.Popen([executable], close_fds=True)
     return f"Opened {app.name}."
 
 
@@ -50,5 +69,5 @@ def search_google(query: str) -> str:
     if os.name != "nt":
         raise RuntimeError("Google search launching currently requires Windows.")
     url = f"https://www.google.com/search?q={quote_plus(cleaned)}"
-    subprocess.Popen(["msedge.exe", url], close_fds=True)
+    subprocess.Popen([_edge_executable(), url], close_fds=True)
     return f"Searching Google for: {cleaned}"
