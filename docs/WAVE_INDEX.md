@@ -1,0 +1,1 @@
+Safe capability wave: system diagnostics, scoped files, bounded web retrieval, device identity, tool metadata, capability catalog, architecture docs and tests.
