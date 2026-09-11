@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from jarvis.homebase import HomeBase, HomeBaseError
+from jarvis.modules import ModuleManager
 
 
 @dataclass(frozen=True)
@@ -22,6 +23,7 @@ class HomeControl:
 
     def __init__(self, homebase: HomeBase) -> None:
         self.homebase = homebase
+        self.modules = ModuleManager(homebase)
         self._commands = self._load_commands()
 
     def _load_commands(self) -> dict[str, HomeCommand]:
@@ -65,6 +67,8 @@ class HomeControl:
             return self._status()
         if spec.action == "report_capabilities":
             return self._capabilities()
+        if spec.action == "report_modules":
+            return self.modules.list_text()
 
         return "Home Base rejected an unknown action."
 
