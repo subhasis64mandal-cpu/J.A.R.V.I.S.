@@ -1,0 +1,1 @@
+Safe read-only capabilities are implemented and documented. Higher-risk automation remains staged.
