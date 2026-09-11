@@ -1,9 +1,4 @@
-"""Loopback-only local agent for approved J.A.R.V.I.S. actions.
-
-This agent is deliberately boring: it exposes a tiny HTTP API, binds only to
-127.0.0.1, validates JSON input, and executes only explicitly registered,
-low-risk actions. It is a bridge to the user's machine, not a remote shell.
-"""
+"""Loopback-only local agent for approved J.A.R.V.I.S. actions."""
 
 from __future__ import annotations
 
@@ -13,6 +8,7 @@ import socket
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
+from jarvis.desktop import list_approved_apps, open_approved_app
 from jarvis.tools import get_date, get_time, system_status
 
 
@@ -31,12 +27,18 @@ def _hostname(_: str) -> str:
     return socket.gethostname()
 
 
+def _open_app(argument: str) -> str:
+    return open_approved_app(argument)
+
+
 AGENT_ACTIONS = {
     "time": get_time,
     "date": get_date,
     "status": _safe_status,
     "machine": _machine,
     "hostname": _hostname,
+    "apps": list_approved_apps,
+    "open_app": _open_app,
 }
 
 
@@ -51,12 +53,16 @@ def handle_action(action: str, argument: str = "") -> dict[str, Any]:
         }
     try:
         return {"ok": True, "action": normalized, "result": handler(argument)}
+    except (ValueError, RuntimeError):
+        return {"ok": False, "action": normalized, "error": "Desktop action rejected safely."}
+    except OSError:
+        return {"ok": False, "action": normalized, "error": "Desktop action failed safely."}
     except Exception:
         return {"ok": False, "action": normalized, "error": "Action failed safely."}
 
 
 class _Handler(BaseHTTPRequestHandler):
-    server_version = "JARVISLocalAgent/0.1"
+    server_version = "JARVISLocalAgent/0.2"
 
     def _send_json(self, status: int, payload: dict[str, Any]) -> None:
         encoded = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -69,10 +75,18 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         if self.path == "/health":
-            self._send_json(200, {"ok": True, "service": "jarvis-local-agent", "version": 1})
+            self._send_json(200, {"ok": True, "service": "jarvis-local-agent", "version": 2})
             return
         if self.path == "/capabilities":
-            self._send_json(200, {"ok": True, "actions": sorted(AGENT_ACTIONS), "arbitrary_commands": False})
+            self._send_json(
+                200,
+                {
+                    "ok": True,
+                    "actions": sorted(AGENT_ACTIONS),
+                    "arbitrary_commands": False,
+                    "desktop_control": "allowlisted-apps",
+                },
+            )
             return
         self._send_json(404, {"ok": False, "error": "Not found."})
 
