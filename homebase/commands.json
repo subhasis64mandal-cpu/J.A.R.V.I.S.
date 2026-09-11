@@ -10,6 +10,11 @@
       "action": "report_capabilities",
       "enabled": true,
       "description": "List configured J.A.R.V.I.S. capabilities"
+    },
+    "modules": {
+      "action": "report_modules",
+      "enabled": true,
+      "description": "List declared J.A.R.V.I.S. modules"
     }
   }
 }
