@@ -1,0 +1,1 @@
+Continue with browser, computer, and Android adapters behind the existing registry and execution policy.
