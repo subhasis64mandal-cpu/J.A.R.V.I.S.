@@ -27,15 +27,27 @@ class HomeBaseGateway:
         self._state = "idle"
         self._catalog = CapabilityCatalog.load()
         events.subscribe("assistant.state", self._on_event)
+        events.subscribe("assistant.decision", self._on_event)
 
     @property
     def address(self) -> str:
         return f"http://{self.host}:{self.port}"
 
     def _on_event(self, event: JarvisEvent) -> None:
-        state = str(event.payload.get("state", "idle"))
-        self._state = state
-        self._broadcast({"state": state})
+        if event.name == "assistant.state":
+            state = str(event.payload.get("state", "idle"))
+            self._state = state
+            self._broadcast({"event": event.name, "state": state})
+            return
+        if event.name == "assistant.decision":
+            # Do not stream prompt/context contents to the UI transport.
+            self._broadcast({
+                "event": event.name,
+                "action": event.payload.get("action"),
+                "target": event.payload.get("target"),
+                "confidence": event.payload.get("confidence"),
+                "reason": event.payload.get("reason"),
+            })
 
     def _broadcast(self, payload: dict[str, object]) -> None:
         message = f"data: {json.dumps(payload)}\n\n".encode()
@@ -75,6 +87,16 @@ class HomeBaseGateway:
                 if self.path == "/capabilities":
                     self._json(HTTPStatus.OK, gateway._catalog.as_dict())
                     return
+                if self.path == "/health":
+                    available = sum(item.status == "available" for item in gateway._catalog.capabilities)
+                    self._json(HTTPStatus.OK, {
+                        "status": "online",
+                        "state": gateway._state,
+                        "capabilities": len(gateway._catalog.capabilities),
+                        "available_capabilities": available,
+                        "policy": gateway._catalog.policy,
+                    })
+                    return
                 if self.path != "/events":
                     self._json(HTTPStatus.NOT_FOUND, {"error": "not found"})
                     return
@@ -86,7 +108,7 @@ class HomeBaseGateway:
                 with gateway._lock:
                     gateway._clients.append(self)
                 try:
-                    self.wfile.write(f"data: {json.dumps({'state': gateway._state})}\n\n".encode())
+                    self.wfile.write(f"data: {json.dumps({'event': 'assistant.state', 'state': gateway._state})}\n\n".encode())
                     self.wfile.flush()
                     while True:
                         if self.rfile.read(1) == b"":
