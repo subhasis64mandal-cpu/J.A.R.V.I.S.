@@ -1,0 +1,1 @@
+Safe read-only capability wave completed. Higher-risk browser, computer, and device control remain staged.
