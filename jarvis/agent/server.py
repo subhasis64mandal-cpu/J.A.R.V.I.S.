@@ -8,7 +8,7 @@ import socket
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
-from jarvis.desktop import list_approved_apps, open_approved_app
+from jarvis.desktop import list_approved_apps, open_approved_app, search_google
 from jarvis.tools import get_date, get_time, system_status
 
 
@@ -39,6 +39,7 @@ AGENT_ACTIONS = {
     "hostname": _hostname,
     "apps": list_approved_apps,
     "open_app": _open_app,
+    "google_search": search_google,
 }
 
 
@@ -62,7 +63,7 @@ def handle_action(action: str, argument: str = "") -> dict[str, Any]:
 
 
 class _Handler(BaseHTTPRequestHandler):
-    server_version = "JARVISLocalAgent/0.2"
+    server_version = "JARVISLocalAgent/0.3"
 
     def _send_json(self, status: int, payload: dict[str, Any]) -> None:
         encoded = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -75,7 +76,7 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         if self.path == "/health":
-            self._send_json(200, {"ok": True, "service": "jarvis-local-agent", "version": 2})
+            self._send_json(200, {"ok": True, "service": "jarvis-local-agent", "version": 3})
             return
         if self.path == "/capabilities":
             self._send_json(
@@ -85,6 +86,7 @@ class _Handler(BaseHTTPRequestHandler):
                     "actions": sorted(AGENT_ACTIONS),
                     "arbitrary_commands": False,
                     "desktop_control": "allowlisted-apps",
+                    "browser_navigation": "edge-google-only",
                 },
             )
             return
