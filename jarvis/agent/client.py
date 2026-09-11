@@ -52,6 +52,7 @@ class LocalAgentClient:
             "hostname",
             "apps",
             "open_app",
+            "google_search",
         }
         if normalized not in allowed:
             raise ValueError("LocalAgentClient action is not allowlisted.")
