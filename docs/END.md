@@ -1,0 +1,1 @@
+Safe capability wave complete; future high-risk adapters remain staged behind policy.
