@@ -49,7 +49,7 @@ def handle_command(
 
 def run_text(router: Router, brain: Brain, home_control: HomeControl, homebase: HomeBase) -> None:
     print(f"{homebase.assistant_name()} — online")
-    print("Home Base: loaded | Text mode. Try 'home status', 'help', or 'exit'.")
+    print("Home Base: loaded | Text mode. Try 'home status', 'home modules', 'help', or 'exit'.")
 
     while True:
         try:
