@@ -1,10 +1,10 @@
 {
-  "version": 1,
+  "version": 2,
   "capabilities": [
     {"id": "computer", "description": "Controlled desktop input and app interaction", "status": "planned", "risk": "control", "dependencies": ["pyautogui"]},
-    {"id": "web", "description": "HTTP/web retrieval and parsing", "status": "planned", "risk": "read", "dependencies": ["beautifulsoup4"]},
+    {"id": "web", "description": "Bounded HTTP(S) text retrieval", "status": "available", "risk": "read", "dependencies": []},
     {"id": "browser", "description": "Browser automation for approved workflows", "status": "planned", "risk": "control", "dependencies": ["selenium"]},
-    {"id": "files", "description": "Scoped local file operations", "status": "planned", "risk": "write", "dependencies": []},
+    {"id": "files", "description": "Scoped read-only local file inspection", "status": "available", "risk": "read", "dependencies": []},
     {"id": "devices", "description": "Explicitly paired device orchestration", "status": "planned", "risk": "control", "dependencies": []},
     {"id": "system", "description": "Read-only host diagnostics", "status": "available", "risk": "read", "dependencies": []}
   ],
@@ -12,6 +12,7 @@
     "arbitrary_shell": false,
     "arbitrary_python": false,
     "network_bind_default": "loopback",
-    "third_party_automation_installed": false
+    "third_party_automation_installed": false,
+    "workspace_file_access": "read-only-scoped"
   }
 }
