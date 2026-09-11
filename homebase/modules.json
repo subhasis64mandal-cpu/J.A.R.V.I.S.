@@ -1,0 +1,35 @@
+{
+  "version": "1.0",
+  "modules": {
+    "computer": {
+      "description": "Desktop interaction and screen tools",
+      "capability": "computer_control",
+      "enabled": false,
+      "entrypoint": "jarvis.adapters.computer"
+    },
+    "web": {
+      "description": "Web retrieval and HTML parsing tools",
+      "capability": "web_access",
+      "enabled": false,
+      "entrypoint": "jarvis.adapters.web"
+    },
+    "browser": {
+      "description": "Controlled browser automation",
+      "capability": "browser_automation",
+      "enabled": false,
+      "entrypoint": "jarvis.adapters.browser"
+    },
+    "memory": {
+      "description": "Persistent assistant memory",
+      "capability": "memory",
+      "enabled": false,
+      "entrypoint": "jarvis.adapters.memory"
+    },
+    "devices": {
+      "description": "Future phone and multi-device communication",
+      "capability": "multi_device",
+      "enabled": false,
+      "entrypoint": "jarvis.adapters.devices"
+    }
+  }
+}
