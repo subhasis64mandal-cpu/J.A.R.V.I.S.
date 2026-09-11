@@ -12,7 +12,8 @@
     "web_access": false,
     "browser_automation": false,
     "memory": false,
-    "multi_device": false
+    "multi_device": false,
+    "system": true
   },
   "safety": {
     "allow_arbitrary_shell": false,
