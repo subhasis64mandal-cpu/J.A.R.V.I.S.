@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "capabilities": [
+    {"id": "computer", "description": "Controlled desktop input and app interaction", "status": "planned", "risk": "control", "dependencies": ["pyautogui"]},
+    {"id": "web", "description": "HTTP/web retrieval and parsing", "status": "planned", "risk": "read", "dependencies": ["beautifulsoup4"]},
+    {"id": "browser", "description": "Browser automation for approved workflows", "status": "planned", "risk": "control", "dependencies": ["selenium"]},
+    {"id": "files", "description": "Scoped local file operations", "status": "planned", "risk": "write", "dependencies": []},
+    {"id": "devices", "description": "Explicitly paired device orchestration", "status": "planned", "risk": "control", "dependencies": []},
+    {"id": "system", "description": "Read-only host diagnostics", "status": "available", "risk": "read", "dependencies": []}
+  ],
+  "policy": {
+    "arbitrary_shell": false,
+    "arbitrary_python": false,
+    "network_bind_default": "loopback",
+    "third_party_automation_installed": false
+  }
+}
