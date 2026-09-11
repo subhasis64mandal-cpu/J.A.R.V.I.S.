@@ -1,0 +1,1 @@
+Current wave: safe read-only capabilities and supporting contracts are implemented. Future browser, computer and device control remain staged.
