@@ -4,10 +4,12 @@ import { motion, useReducedMotion } from 'motion/react'
 import './styles.css'
 
 const demoStates = ['IDLE', 'LISTENING', 'THINKING', 'EXECUTING', 'SPEAKING']
+const allowedCommands = ['activate', 'status', 'help']
 
 function App() {
   const [state, setState] = useState('IDLE')
   const [connected, setConnected] = useState(false)
+  const [response, setResponse] = useState('Home Base ready.')
   const reduceMotion = useReducedMotion()
 
   useEffect(() => {
@@ -15,7 +17,10 @@ function App() {
     let source
     try {
       source = new EventSource('/events')
-      source.onopen = () => setConnected(true)
+      source.onopen = () => {
+        setConnected(true)
+        if (demoTimer) window.clearInterval(demoTimer)
+      }
       source.onmessage = (event) => {
         try {
           const payload = JSON.parse(event.data)
@@ -25,7 +30,11 @@ function App() {
       source.onerror = () => {
         setConnected(false)
         source?.close()
-        demoTimer = window.setInterval(() => setState((current) => demoStates[(demoStates.indexOf(current) + 1) % demoStates.length]), 6500)
+        if (!demoTimer) {
+          demoTimer = window.setInterval(() => {
+            setState((current) => demoStates[(demoStates.indexOf(current) + 1) % demoStates.length])
+          }, 6500)
+        }
       }
     } catch {
       demoTimer = window.setInterval(() => setState((current) => demoStates[(demoStates.indexOf(current) + 1) % demoStates.length]), 6500)
@@ -33,9 +42,21 @@ function App() {
     return () => { source?.close(); if (demoTimer) window.clearInterval(demoTimer) }
   }, [])
 
-  const activate = async () => {
-    setState('LISTENING')
-    try { await fetch('/command', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command: 'listen' }) }) } catch { /* UI remains useful without the runtime bridge. */ }
+  const runCommand = async (command) => {
+    if (!allowedCommands.includes(command)) return
+    if (command === 'activate') setState('LISTENING')
+    try {
+      const result = await fetch('/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command }),
+      })
+      const payload = await result.json()
+      if (payload.response) setResponse(String(payload.response))
+      if (payload.state) setState(String(payload.state).toUpperCase())
+    } catch {
+      setResponse('Runtime bridge unavailable. Home Base remains in local UI mode.')
+    }
   }
 
   return (
@@ -52,13 +73,14 @@ function App() {
         </motion.div>
         <motion.div className="status" key={state} initial={reduceMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .5 }}>
           <span className="eyebrow">J.A.R.V.I.S. CORE</span><h1>{state}</h1>
-          <p>{state === 'IDLE' ? 'Standing by for your command.' : state === 'LISTENING' ? 'Audio input channel active.' : state === 'THINKING' ? 'Processing your request.' : state === 'EXECUTING' ? 'Executing an approved capability.' : 'Voice output channel active.'}</p>
+          <p>{response}</p>
         </motion.div>
       </section>
       <footer className="bottom-grid">
         <div className="glass-card"><span>CORE</span><strong>ONLINE</strong></div>
-        <div className="glass-card"><span>STATE</span><strong>{state}</strong></div>
-        <button className="glass-card command" onClick={activate}><span>COMMAND</span><strong>ACTIVATE</strong></button>
+        <button className="glass-card command" onClick={() => runCommand('status')}><span>STATUS</span><strong>INSPECT</strong></button>
+        <button className="glass-card command" onClick={() => runCommand('activate')}><span>COMMAND</span><strong>ACTIVATE</strong></button>
+        <button className="glass-card command command-help" onClick={() => runCommand('help')}><span>TOOLS</span><strong>VIEW</strong></button>
       </footer>
     </main>
   )
