@@ -1,5 +1,5 @@
 {
-  "home_base_version": "1.0",
+  "home_base_version": "1.1",
   "assistant": {
     "name": "J.A.R.V.I.S.",
     "mode": "local-first",
@@ -9,24 +9,25 @@
     "voice": true,
     "ai_brain": true,
     "computer_control": false,
-    "web_access": false,
+    "web_access": true,
     "browser_automation": false,
-    "memory": false,
+    "memory": true,
     "multi_device": false,
+    "files": true,
     "system": true
   },
   "safety": {
     "allow_arbitrary_shell": false,
+    "allow_arbitrary_python": false,
     "require_confirmation_for_control_tools": true,
     "allowlisted_apps_only": true,
-    "secrets_in_repository": false
+    "secrets_in_repository": false,
+    "workspace_file_access": "read-only-scoped",
+    "web_access": "bounded-http-read-only"
   },
   "planned_modules": [
     "computer",
-    "web",
     "browser",
-    "memory",
-    "system",
     "devices"
   ]
 }
