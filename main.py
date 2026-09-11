@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 
+from jarvis.agent.client import LocalAgentClient, LocalAgentUnavailable
 from jarvis.brain import Brain
 from jarvis.context import ContextBuilder
 from jarvis.control import HomeControl
@@ -22,6 +23,28 @@ def build_router(homebase: HomeBase, memory: MemoryStore) -> Router:
     router.register("time", "Show the current time", get_time, aliases=("clock",))
     router.register("date", "Show today's date", get_date, aliases=("day",))
     router.register("status", "Show assistant status", system_status, aliases=("health",))
+
+    agent = LocalAgentClient()
+
+    def pc(argument: str) -> str:
+        action = argument.strip().lower() or "status"
+        try:
+            response = agent.action(action)
+        except ValueError:
+            return "That PC action is not allowlisted. Try: pc status, pc machine, or pc hostname."
+        except LocalAgentUnavailable:
+            return "The local J.A.R.V.I.S. agent is offline or unavailable."
+        if response.ok:
+            return response.result
+        return response.error or "The local PC action failed safely."
+
+    router.register(
+        "pc",
+        "Query the connected Windows PC through the local agent",
+        pc,
+        aliases=("computer", "localpc"),
+        capability="system",
+    )
 
     def remember(argument: str) -> str:
         if "=" not in argument:
@@ -77,7 +100,7 @@ def handle_command(router: Router, brain: Brain, decision: DecisionEngine, conte
 
 def run_text(router: Router, brain: Brain, decision: DecisionEngine, context: ContextBuilder, home_control: HomeControl, homebase: HomeBase, events: EventBus) -> None:
     print(f"{homebase.assistant_name()} — online")
-    print("Home Base: loaded | Text mode. Try 'remember name = JARVIS', 'recall name', 'home status', or 'help'.")
+    print("Home Base: loaded | Text mode. Try 'remember name = JARVIS', 'recall name', 'pc machine', 'home status', or 'help'.")
     events.publish("assistant.state", state="idle")
     while True:
         try:
