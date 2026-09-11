@@ -1,0 +1,1 @@
+The safe capability wave adds bounded, read-only system, file, and web adapters. Higher-risk automation remains gated behind policy and dedicated adapters.
