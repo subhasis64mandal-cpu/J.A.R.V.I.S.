@@ -12,6 +12,15 @@ It is intentionally independent of the web, browser automation, PyAutoGUI, Bash,
 - persistent configuration
 - planned modules
 - a stable place for future state and memory adapters
+- local runtime observability for the Home Base UI
+
+## Current capability surface
+
+- `system` — read-only host diagnostics
+- `files` — workspace-scoped read/list operations
+- `web` — bounded HTTP(S) text retrieval
+
+Computer, browser, and device control are still staged behind explicit policies and adapters.
 
 ## Design rule
 
@@ -25,7 +34,9 @@ Never commit API keys, passwords, access tokens, or private credentials here.
 homebase/
 ├── README.md
 ├── config.json
-└── schema.json
+├── modules.json
+├── schema.json
+└── tool_catalog.json
 ```
 
-Future runtime components can read this configuration through a dedicated adapter without giving the configuration file permission to execute anything by itself.
+Future runtime components can read this configuration through dedicated adapters without giving configuration files permission to execute anything by themselves.
