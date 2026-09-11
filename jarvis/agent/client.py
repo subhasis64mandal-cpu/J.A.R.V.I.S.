@@ -1,8 +1,4 @@
-"""Client for the loopback-only J.A.R.V.I.S. Local Agent.
-
-The client deliberately knows only the agent's small HTTP contract. It does not
-expose a generic URL fetcher, shell runner, or arbitrary RPC mechanism.
-"""
+"""Client for the loopback-only J.A.R.V.I.S. Local Agent."""
 
 from __future__ import annotations
 
@@ -48,7 +44,15 @@ class LocalAgentClient:
 
     def action(self, action: str, argument: str = "") -> AgentResponse:
         normalized = action.strip().lower()
-        allowed = {"time", "date", "status", "machine", "hostname"}
+        allowed = {
+            "time",
+            "date",
+            "status",
+            "machine",
+            "hostname",
+            "apps",
+            "open_app",
+        }
         if normalized not in allowed:
             raise ValueError("LocalAgentClient action is not allowlisted.")
         if len(argument) > 1024:
