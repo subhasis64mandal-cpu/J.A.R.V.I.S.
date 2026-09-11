@@ -42,7 +42,7 @@ class ExecutionPolicy:
         if not tool.requires_confirmation:
             return ExecutionResult(True, "Execution is permitted.")
         token = token_urlsafe(18)
-        self._pending[token] = name.strip().lower()
+        self._pending[token] = tool.name.strip().lower()
         return ExecutionResult(
             False,
             f"The '{tool.name}' tool requires confirmation.",
@@ -56,6 +56,6 @@ class ExecutionPolicy:
             return ExecutionResult(False, "Tool is not registered.")
         if tool.requires_confirmation:
             expected = confirmation_token and self._pending.pop(confirmation_token, None)
-            if expected != name.strip().lower():
+            if expected != tool.name.strip().lower():
                 return ExecutionResult(False, f"The '{tool.name}' tool requires confirmation.", True)
         return ExecutionResult(True, self.registry.execute(name, argument))
