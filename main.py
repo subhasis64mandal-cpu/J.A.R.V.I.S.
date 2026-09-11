@@ -13,15 +13,19 @@ from jarvis.gateway import HomeBaseGateway
 from jarvis.homebase import HomeBase, HomeBaseError
 from jarvis.memory import MemoryStore
 from jarvis.router import Router
-from jarvis.tools import get_date, get_time, system_status
+from jarvis.tools import file_list, file_read, get_date, get_time, system_info, system_status, web_get
 from jarvis.voice import VoiceInterface, VoiceUnavailable
 
 
 def build_router(homebase: HomeBase, memory: MemoryStore) -> Router:
     router = Router(homebase)
-    router.register("time", "Show the current time", get_time, aliases=("clock",))
-    router.register("date", "Show today's date", get_date, aliases=("day",))
-    router.register("status", "Show assistant status", system_status, aliases=("health",))
+    router.register("time", "Show the current time", get_time, aliases=("clock",), capability="system")
+    router.register("date", "Show today's date", get_date, aliases=("day",), capability="system")
+    router.register("status", "Show assistant status", system_status, aliases=("health",), capability="system")
+    router.register("system", "Show read-only host diagnostics", system_info, aliases=("diagnostics",), capability="system")
+    router.register("web", "Fetch a bounded HTTP(S) text resource", web_get, aliases=("fetch",), capability="web")
+    router.register("files", "List files in the J.A.R.V.I.S. workspace", file_list, aliases=("ls",), capability="files")
+    router.register("read", "Read a UTF-8 file in the workspace", file_read, aliases=("cat",), capability="files")
 
     def remember(argument: str) -> str:
         if "=" not in argument:
@@ -68,16 +72,18 @@ def handle_command(router: Router, brain: Brain, decision: DecisionEngine, conte
 
     if proposal.action == "HOME":
         response = home_control.execute(proposal.target or "status")
-    else:
+    elif proposal.action == "ROUTE":
         command = brain.normalize(command)
         response = router.route(command)
+    else:
+        response = brain.generate(command, system_context=runtime_context.as_system_context())
     events.publish("assistant.state", state="speaking")
     return response, True
 
 
 def run_text(router: Router, brain: Brain, decision: DecisionEngine, context: ContextBuilder, home_control: HomeControl, homebase: HomeBase, events: EventBus) -> None:
     print(f"{homebase.assistant_name()} — online")
-    print("Home Base: loaded | Text mode. Try 'remember name = JARVIS', 'recall name', 'home status', or 'help'.")
+    print("Home Base: loaded | Text mode. Try 'web https://example.com', 'files', 'system', or 'help'.")
     events.publish("assistant.state", state="idle")
     while True:
         try:
