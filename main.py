@@ -14,6 +14,7 @@ from jarvis.gateway import HomeBaseGateway
 from jarvis.homebase import HomeBase, HomeBaseError
 from jarvis.memory import MemoryStore
 from jarvis.router import Router
+from jarvis.safe_tools import CapabilityError, fetch_web, host_diagnostics, list_files, read_file
 from jarvis.tools import get_date, get_time, system_status
 from jarvis.voice import VoiceInterface, VoiceUnavailable
 
@@ -45,6 +46,29 @@ def build_router(homebase: HomeBase, memory: MemoryStore) -> Router:
         aliases=("computer", "localpc"),
         capability="system",
     )
+
+    def files(argument: str) -> str:
+        try:
+            return list_files(argument)
+        except (CapabilityError, OSError) as exc:
+            return f"File access denied safely: {exc}"
+
+    def read(argument: str) -> str:
+        try:
+            return read_file(argument)
+        except (CapabilityError, OSError) as exc:
+            return f"File read denied safely: {exc}"
+
+    def web(argument: str) -> str:
+        try:
+            return fetch_web(argument)
+        except (CapabilityError, OSError) as exc:
+            return f"Web retrieval denied safely: {exc}"
+
+    router.register("files", "List files inside the J.A.R.V.I.S. workspace", files, aliases=("ls",), capability="files")
+    router.register("read", "Read a UTF-8 text file inside the J.A.R.V.I.S. workspace", read, aliases=("cat",), capability="files")
+    router.register("web", "Fetch bounded text from an HTTP(S) URL", web, aliases=("fetch",), capability="web")
+    router.register("diagnostics", "Show read-only host diagnostics", host_diagnostics, aliases=("diag",), capability="system")
 
     def remember(argument: str) -> str:
         if "=" not in argument:
@@ -100,7 +124,7 @@ def handle_command(router: Router, brain: Brain, decision: DecisionEngine, conte
 
 def run_text(router: Router, brain: Brain, decision: DecisionEngine, context: ContextBuilder, home_control: HomeControl, homebase: HomeBase, events: EventBus) -> None:
     print(f"{homebase.assistant_name()} — online")
-    print("Home Base: loaded | Text mode. Try 'remember name = JARVIS', 'recall name', 'pc machine', 'home status', or 'help'.")
+    print("Home Base: loaded | Text mode. Try 'pc machine', 'files', 'read README.md', 'web https://example.com', or 'help'.")
     events.publish("assistant.state", state="idle")
     while True:
         try:
