@@ -11,47 +11,28 @@ from typing import Any
 from jarvis.desktop import (
     list_approved_apps,
     list_approved_sites,
+    manage_approved_window,
     open_approved_app,
     open_approved_site,
     search_google,
 )
 from jarvis.tools import get_date, get_time, system_status
 
-
 MAX_BODY_BYTES = 8_192
 
 
-def _safe_status(_: str) -> str:
-    return system_status("")
-
-
-def _machine(_: str) -> str:
-    return f"{platform.system()} {platform.release()} ({platform.machine()})"
-
-
-def _hostname(_: str) -> str:
-    return socket.gethostname()
-
-
-def _open_app(argument: str) -> str:
-    return open_approved_app(argument)
-
-
-def _open_site(argument: str) -> str:
-    return open_approved_site(argument)
-
+def _safe_status(_: str) -> str: return system_status("")
+def _machine(_: str) -> str: return f"{platform.system()} {platform.release()} ({platform.machine()})"
+def _hostname(_: str) -> str: return socket.gethostname()
+def _open_app(argument: str) -> str: return open_approved_app(argument)
+def _open_site(argument: str) -> str: return open_approved_site(argument)
+def _window(argument: str) -> str: return manage_approved_window(argument)
 
 AGENT_ACTIONS = {
-    "time": get_time,
-    "date": get_date,
-    "status": _safe_status,
-    "machine": _machine,
-    "hostname": _hostname,
-    "apps": list_approved_apps,
-    "sites": list_approved_sites,
-    "open_app": _open_app,
-    "open_site": _open_site,
-    "google_search": search_google,
+    "time": get_time, "date": get_date, "status": _safe_status, "machine": _machine,
+    "hostname": _hostname, "apps": list_approved_apps, "sites": list_approved_sites,
+    "open_app": _open_app, "open_site": _open_site, "google_search": search_google,
+    "window": _window,
 }
 
 
@@ -59,11 +40,7 @@ def handle_action(action: str, argument: str = "") -> dict[str, Any]:
     normalized = action.strip().lower()
     handler = AGENT_ACTIONS.get(normalized)
     if handler is None:
-        return {
-            "ok": False,
-            "error": "Action is not allowlisted.",
-            "allowed_actions": sorted(AGENT_ACTIONS),
-        }
+        return {"ok": False, "error": "Action is not allowlisted.", "allowed_actions": sorted(AGENT_ACTIONS)}
     try:
         return {"ok": True, "action": normalized, "result": handler(argument)}
     except (ValueError, RuntimeError):
@@ -75,7 +52,7 @@ def handle_action(action: str, argument: str = "") -> dict[str, Any]:
 
 
 class _Handler(BaseHTTPRequestHandler):
-    server_version = "JARVISLocalAgent/0.4"
+    server_version = "JARVISLocalAgent/0.5"
 
     def _send_json(self, status: int, payload: dict[str, Any]) -> None:
         encoded = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -88,19 +65,10 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         if self.path == "/health":
-            self._send_json(200, {"ok": True, "service": "jarvis-local-agent", "version": 4})
+            self._send_json(200, {"ok": True, "service": "jarvis-local-agent", "version": 5})
             return
         if self.path == "/capabilities":
-            self._send_json(
-                200,
-                {
-                    "ok": True,
-                    "actions": sorted(AGENT_ACTIONS),
-                    "arbitrary_commands": False,
-                    "desktop_control": "allowlisted-apps",
-                    "browser_navigation": "edge-allowlisted-sites",
-                },
-            )
+            self._send_json(200, {"ok": True, "actions": sorted(AGENT_ACTIONS), "arbitrary_commands": False, "desktop_control": "allowlisted-apps-and-windows", "browser_navigation": "edge-allowlisted-sites"})
             return
         self._send_json(404, {"ok": False, "error": "Not found."})
 
@@ -130,23 +98,16 @@ class _Handler(BaseHTTPRequestHandler):
         result = handle_action(payload["action"], argument)
         self._send_json(200 if result["ok"] else 403, result)
 
-    def log_message(self, _: str, *args: object) -> None:
-        return
+    def log_message(self, _: str, *args: object) -> None: return
 
 
 class LocalAgentServer:
     """Start a local-only J.A.R.V.I.S. agent server."""
-
     def __init__(self, host: str = "127.0.0.1", port: int = 8766) -> None:
-        if host not in {"127.0.0.1", "localhost"}:
-            raise ValueError("LocalAgentServer must bind to loopback.")
+        if host not in {"127.0.0.1", "localhost"}: raise ValueError("LocalAgentServer must bind to loopback.")
         self.address = (host, port)
         self._server = ThreadingHTTPServer(self.address, _Handler)
         self._server.daemon_threads = True
-
-    def start(self) -> None:
-        self._server.serve_forever(poll_interval=0.2)
-
+    def start(self) -> None: self._server.serve_forever(poll_interval=0.2)
     def stop(self) -> None:
-        self._server.shutdown()
-        self._server.server_close()
+        self._server.shutdown(); self._server.server_close()
