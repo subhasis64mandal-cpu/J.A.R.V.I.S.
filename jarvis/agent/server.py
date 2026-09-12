@@ -8,7 +8,13 @@ import socket
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
-from jarvis.desktop import list_approved_apps, open_approved_app, search_google
+from jarvis.desktop import (
+    list_approved_apps,
+    list_approved_sites,
+    open_approved_app,
+    open_approved_site,
+    search_google,
+)
 from jarvis.tools import get_date, get_time, system_status
 
 
@@ -31,6 +37,10 @@ def _open_app(argument: str) -> str:
     return open_approved_app(argument)
 
 
+def _open_site(argument: str) -> str:
+    return open_approved_site(argument)
+
+
 AGENT_ACTIONS = {
     "time": get_time,
     "date": get_date,
@@ -38,7 +48,9 @@ AGENT_ACTIONS = {
     "machine": _machine,
     "hostname": _hostname,
     "apps": list_approved_apps,
+    "sites": list_approved_sites,
     "open_app": _open_app,
+    "open_site": _open_site,
     "google_search": search_google,
 }
 
@@ -63,7 +75,7 @@ def handle_action(action: str, argument: str = "") -> dict[str, Any]:
 
 
 class _Handler(BaseHTTPRequestHandler):
-    server_version = "JARVISLocalAgent/0.3"
+    server_version = "JARVISLocalAgent/0.4"
 
     def _send_json(self, status: int, payload: dict[str, Any]) -> None:
         encoded = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -76,7 +88,7 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         if self.path == "/health":
-            self._send_json(200, {"ok": True, "service": "jarvis-local-agent", "version": 3})
+            self._send_json(200, {"ok": True, "service": "jarvis-local-agent", "version": 4})
             return
         if self.path == "/capabilities":
             self._send_json(
@@ -86,7 +98,7 @@ class _Handler(BaseHTTPRequestHandler):
                     "actions": sorted(AGENT_ACTIONS),
                     "arbitrary_commands": False,
                     "desktop_control": "allowlisted-apps",
-                    "browser_navigation": "edge-google-only",
+                    "browser_navigation": "edge-allowlisted-sites",
                 },
             )
             return
