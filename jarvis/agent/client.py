@@ -51,7 +51,9 @@ class LocalAgentClient:
             "machine",
             "hostname",
             "apps",
+            "sites",
             "open_app",
+            "open_site",
             "google_search",
         }
         if normalized not in allowed:

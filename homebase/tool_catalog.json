@@ -1,9 +1,9 @@
 {
-  "version": 3,
+  "version": 4,
   "capabilities": [
     {"id": "computer", "description": "Controlled desktop input and approved app interaction", "status": "available", "risk": "control", "dependencies": []},
     {"id": "web", "description": "Bounded HTTP(S) text retrieval", "status": "available", "risk": "read", "dependencies": []},
-    {"id": "browser", "description": "Browser automation for approved workflows", "status": "planned", "risk": "control", "dependencies": ["selenium"]},
+    {"id": "browser", "description": "Launch Edge to fixed allowlisted website endpoints", "status": "available", "risk": "control", "dependencies": []},
     {"id": "files", "description": "Scoped local file inspection", "status": "available", "risk": "read", "dependencies": []},
     {"id": "devices", "description": "Explicitly paired device orchestration", "status": "planned", "risk": "control", "dependencies": []},
     {"id": "system", "description": "Read-only host diagnostics", "status": "available", "risk": "read", "dependencies": []}
@@ -14,6 +14,7 @@
     "network_bind_default": "loopback",
     "third_party_automation_installed": false,
     "desktop_control": "allowlisted-apps-only",
+    "browser_navigation": "allowlisted-sites-only",
     "workspace_file_access": "read-only-scoped"
   }
 }
