@@ -35,10 +35,12 @@ def build_router(homebase: HomeBase, memory: MemoryStore) -> Router:
             action = "open_app"
         elif action == "search":
             action = "google_search"
+        elif action in {"site", "navigate", "go"}:
+            action = "open_site"
         try:
             response = agent.action(action, action_argument)
         except ValueError:
-            return "That PC action is not allowlisted. Try: pc status, pc machine, pc apps, pc open edge, or pc search <query>."
+            return "That PC action is not allowlisted. Try: pc status, pc machine, pc apps, pc sites, pc open edge, pc search <query>, or pc site youtube."
         except LocalAgentUnavailable:
             return "The local J.A.R.V.I.S. agent is offline or unavailable."
         if response.ok:
@@ -130,7 +132,7 @@ def handle_command(router: Router, brain: Brain, decision: DecisionEngine, conte
 
 def run_text(router: Router, brain: Brain, decision: DecisionEngine, context: ContextBuilder, home_control: HomeControl, homebase: HomeBase, events: EventBus) -> None:
     print(f"{homebase.assistant_name()} — online")
-    print("Home Base: loaded | Text mode. Try 'pc machine', 'pc apps', 'pc open edge', 'pc search weather', 'files', 'read README.md', or 'help'.")
+    print("Home Base: loaded | Text mode. Try 'pc machine', 'pc apps', 'pc sites', 'pc open edge', 'pc search weather', 'pc site youtube', 'files', 'read README.md', or 'help'.")
     events.publish("assistant.state", state="idle")
     while True:
         try:
