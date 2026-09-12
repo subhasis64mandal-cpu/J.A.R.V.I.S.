@@ -1,14 +1,10 @@
 {
-  "home_base_version": "1.2",
-  "assistant": {
-    "name": "J.A.R.V.I.S.",
-    "mode": "local-first",
-    "status": "development"
-  },
+  "home_base_version": "1.3",
+  "assistant": {"name": "J.A.R.V.I.S.", "mode": "local-first", "status": "development"},
   "capabilities": {
     "voice": true,
     "ai_brain": true,
-    "computer_control": false,
+    "computer_control": true,
     "web_access": true,
     "browser_navigation": true,
     "browser_automation": false,
@@ -27,8 +23,5 @@
     "workspace_file_access": "read-only-scoped",
     "web_access": "bounded-http-read-only"
   },
-  "planned_modules": [
-    "browser_automation",
-    "devices"
-  ]
+  "planned_modules": ["browser_automation", "devices"]
 }
