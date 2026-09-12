@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from threading import Lock, Thread
 from typing import Callable
 
@@ -12,8 +13,12 @@ from jarvis.capabilities import CapabilityCatalog
 from jarvis.events import EventBus, JarvisEvent
 
 
+MAX_COMMAND_BYTES = 1024
+UI_ROOT = Path(__file__).resolve().parent.parent / "homebase" / "ui"
+
+
 class HomeBaseGateway:
-    """Expose a tiny local SSE/HTTP bridge without arbitrary command execution."""
+    """Expose a local UI/API bridge without arbitrary command execution."""
 
     def __init__(self, events: EventBus, command_handler: Callable[[str], str], host: str = "127.0.0.1", port: int = 8787) -> None:
         self.events = events
@@ -40,7 +45,6 @@ class HomeBaseGateway:
             self._broadcast({"event": event.name, "state": state})
             return
         if event.name == "assistant.decision":
-            # Do not stream prompt/context contents to the UI transport.
             self._broadcast({
                 "event": event.name,
                 "action": event.payload.get("action"),
@@ -80,27 +84,37 @@ class HomeBaseGateway:
                 self.end_headers()
                 self.wfile.write(body)
 
+            def _file(self, path: Path, content_type: str) -> None:
+                try:
+                    body = path.read_bytes()
+                except OSError:
+                    self._json(404, {"error": "ui asset not found"})
+                    return
+                self.send_response(200)
+                self.send_header("Content-Type", content_type)
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                self.wfile.write(body)
+
             def do_GET(self) -> None:  # noqa: N802
+                if self.path in {"/", "/index.html"}:
+                    self._file(UI_ROOT / "index.html", "text/html; charset=utf-8")
+                    return
                 if self.path == "/state":
-                    self._json(HTTPStatus.OK, {"state": gateway._state})
+                    self._json(200, {"state": gateway._state})
                     return
                 if self.path == "/capabilities":
-                    self._json(HTTPStatus.OK, gateway._catalog.as_dict())
+                    self._json(200, gateway._catalog.as_dict())
                     return
                 if self.path == "/health":
                     available = sum(item.status == "available" for item in gateway._catalog.capabilities)
-                    self._json(HTTPStatus.OK, {
-                        "status": "online",
-                        "state": gateway._state,
-                        "capabilities": len(gateway._catalog.capabilities),
-                        "available_capabilities": available,
-                        "policy": gateway._catalog.policy,
-                    })
+                    self._json(200, {"status": "online", "state": gateway._state, "capabilities": len(gateway._catalog.capabilities), "available_capabilities": available, "policy": gateway._catalog.policy})
                     return
                 if self.path != "/events":
-                    self._json(HTTPStatus.NOT_FOUND, {"error": "not found"})
+                    self._json(404, {"error": "not found"})
                     return
-                self.send_response(HTTPStatus.OK)
+                self.send_response(200)
                 self.send_header("Content-Type", "text/event-stream")
                 self.send_header("Cache-Control", "no-cache")
                 self.send_header("Connection", "keep-alive")
@@ -110,9 +124,8 @@ class HomeBaseGateway:
                 try:
                     self.wfile.write(f"data: {json.dumps({'event': 'assistant.state', 'state': gateway._state})}\n\n".encode())
                     self.wfile.flush()
-                    while True:
-                        if self.rfile.read(1) == b"":
-                            break
+                    while self.rfile.read(1) != b"":
+                        pass
                 except (BrokenPipeError, ConnectionResetError, OSError):
                     pass
                 finally:
@@ -122,23 +135,27 @@ class HomeBaseGateway:
 
             def do_POST(self) -> None:  # noqa: N802
                 if self.path != "/command":
-                    self._json(HTTPStatus.NOT_FOUND, {"error": "not found"})
+                    self._json(404, {"error": "not found"})
                     return
                 try:
-                    size = min(int(self.headers.get("Content-Length", "0")), 4096)
-                    payload = json.loads(self.rfile.read(size) or b"{}")
-                    command = str(payload.get("command", "")).strip().lower()
+                    raw_size = int(self.headers.get("Content-Length", "0"))
+                    if raw_size <= 0 or raw_size > MAX_COMMAND_BYTES:
+                        raise ValueError
+                    payload = json.loads(self.rfile.read(raw_size))
+                    command = payload.get("command", "")
                 except (ValueError, json.JSONDecodeError):
-                    self._json(HTTPStatus.BAD_REQUEST, {"error": "invalid request"})
+                    self._json(400, {"error": "invalid request"})
                     return
-                if command not in {"activate", "status", "help"}:
-                    self._json(HTTPStatus.FORBIDDEN, {"error": "command is not exposed by Home Base"})
+                if not isinstance(command, str) or not command.strip():
+                    self._json(400, {"error": "command is required"})
                     return
-                if command == "activate":
+                command = command.strip()
+                if command.lower() == "activate":
                     gateway.events.publish("assistant.state", state="listening", source="homebase.ui")
-                    self._json(HTTPStatus.OK, {"ok": True, "state": "listening"})
+                    self._json(200, {"ok": True, "state": "listening"})
                     return
-                self._json(HTTPStatus.OK, {"ok": True, "response": gateway.command_handler(command)})
+                response = gateway.command_handler(command)
+                self._json(200, {"ok": True, "response": response, "state": gateway._state})
 
         self._server = ThreadingHTTPServer((self.host, self.port), Handler)
         self._thread = Thread(target=self._server.serve_forever, name="jarvis-homebase-gateway", daemon=True)
