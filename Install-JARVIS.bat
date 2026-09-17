@@ -44,11 +44,19 @@ if not exist "%~dp0.env" (
 )
 
 echo.
+echo Enabling automatic J.A.R.V.I.S. startup at Windows sign-in...
+"%JARVIS_PY%" -m jarvis.startup install
+if errorlevel 1 goto :fail
+
+echo.
 echo ============================================
 echo SETUP COMPLETE
 echo ============================================
 echo.
-echo Double-click Start-JARVIS.bat to launch Home Base.
+echo J.A.R.V.I.S. will now start automatically when you sign in to Windows.
+echo Home Base opens as a compact desktop companion.
+echo You can still double-click Start-JARVIS.bat to launch it manually.
+echo To disable automatic startup, run Disable-JARVIS-Startup.bat.
 echo Your local memory/state stays in the ignored .jarvis folder.
 echo.
 pause
