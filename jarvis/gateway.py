@@ -14,6 +14,13 @@ from jarvis.events import EventBus, JarvisEvent
 
 MAX_COMMAND_BYTES = 1_024
 UI_ROOT = Path(__file__).resolve().parent.parent / "homebase" / "ui"
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "no-referrer",
+    "Content-Security-Policy": "default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+}
 
 
 class HomeBaseGateway:
@@ -61,7 +68,7 @@ class HomeBaseGateway:
             self._broadcast({"event": event.name, "state": state})
             return
         payload = {"event": event.name}
-        payload.update({key: value for key, value in event.payload.items() if key not in {"context"}})
+        payload.update({key: value for key, value in event.payload.items() if key not in {"context", "token"}})
         self._broadcast(payload)
 
     def _broadcast(self, payload: dict[str, object]) -> None:
@@ -86,12 +93,17 @@ class HomeBaseGateway:
             def log_message(self, format: str, *args: object) -> None:
                 return
 
+            def _headers(self) -> None:
+                for name, value in SECURITY_HEADERS.items():
+                    self.send_header(name, value)
+
             def _json(self, status: int, payload: object) -> None:
                 body = json.dumps(payload, ensure_ascii=False).encode()
                 self.send_response(status)
                 self.send_header("Content-Type", "application/json; charset=utf-8")
                 self.send_header("Content-Length", str(len(body)))
                 self.send_header("Cache-Control", "no-store")
+                self._headers()
                 self.end_headers()
                 self.wfile.write(body)
 
@@ -105,6 +117,7 @@ class HomeBaseGateway:
                 self.send_header("Content-Type", content_type)
                 self.send_header("Content-Length", str(len(body)))
                 self.send_header("Cache-Control", "no-store")
+                self._headers()
                 self.end_headers()
                 self.wfile.write(body)
 
@@ -138,6 +151,7 @@ class HomeBaseGateway:
                 self.send_header("Content-Type", "text/event-stream")
                 self.send_header("Cache-Control", "no-cache")
                 self.send_header("Connection", "keep-alive")
+                self._headers()
                 self.end_headers()
                 with gateway._lock:
                     gateway._clients.append(self)
@@ -160,6 +174,9 @@ class HomeBaseGateway:
                 try:
                     raw_size = int(self.headers.get("Content-Length", "0"))
                     if raw_size <= 0 or raw_size > MAX_COMMAND_BYTES:
+                        raise ValueError
+                    content_type = self.headers.get("Content-Type", "")
+                    if not content_type.lower().startswith("application/json"):
                         raise ValueError
                     payload = json.loads(self.rfile.read(raw_size))
                     command = payload.get("command", "")
