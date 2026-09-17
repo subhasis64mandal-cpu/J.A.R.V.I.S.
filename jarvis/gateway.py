@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Lock, Thread
@@ -13,18 +12,32 @@ from jarvis.capabilities import CapabilityCatalog
 from jarvis.events import EventBus, JarvisEvent
 
 
-MAX_COMMAND_BYTES = 1024
+MAX_COMMAND_BYTES = 1_024
 UI_ROOT = Path(__file__).resolve().parent.parent / "homebase" / "ui"
 
 
 class HomeBaseGateway:
     """Expose a local UI/API bridge without arbitrary command execution."""
 
-    def __init__(self, events: EventBus, command_handler: Callable[[str], str], host: str = "127.0.0.1", port: int = 8787) -> None:
+    def __init__(
+        self,
+        events: EventBus,
+        command_handler: Callable[[str], str],
+        host: str = "127.0.0.1",
+        port: int = 8787,
+        runtime_info: Callable[[], dict[str, object]] | None = None,
+        activity_info: Callable[[int], tuple[dict[str, object], ...]] | None = None,
+        device_info: Callable[[], str] | None = None,
+    ) -> None:
+        if host not in {"127.0.0.1", "localhost"}:
+            raise ValueError("HomeBaseGateway must bind to loopback.")
         self.events = events
         self.command_handler = command_handler
         self.host = host
         self.port = port
+        self._runtime_info = runtime_info or (lambda: {"state": self._state})
+        self._activity_info = activity_info or (lambda _limit: ())
+        self._device_info = device_info or (lambda: "No device registry connected.")
         self._clients: list[object] = []
         self._lock = Lock()
         self._server: ThreadingHTTPServer | None = None
@@ -33,6 +46,9 @@ class HomeBaseGateway:
         self._catalog = CapabilityCatalog.load()
         events.subscribe("assistant.state", self._on_event)
         events.subscribe("assistant.decision", self._on_event)
+        events.subscribe("assistant.confirmation", self._on_event)
+        events.subscribe("assistant.execution", self._on_event)
+        events.subscribe("assistant.response", self._on_event)
 
     @property
     def address(self) -> str:
@@ -44,17 +60,12 @@ class HomeBaseGateway:
             self._state = state
             self._broadcast({"event": event.name, "state": state})
             return
-        if event.name == "assistant.decision":
-            self._broadcast({
-                "event": event.name,
-                "action": event.payload.get("action"),
-                "target": event.payload.get("target"),
-                "confidence": event.payload.get("confidence"),
-                "reason": event.payload.get("reason"),
-            })
+        payload = {"event": event.name}
+        payload.update({key: value for key, value in event.payload.items() if key not in {"context"}})
+        self._broadcast(payload)
 
     def _broadcast(self, payload: dict[str, object]) -> None:
-        message = f"data: {json.dumps(payload)}\n\n".encode()
+        message = f"data: {json.dumps(payload, ensure_ascii=False)}\n\n".encode()
         with self._lock:
             clients = list(self._clients)
         stale = []
@@ -75,10 +86,10 @@ class HomeBaseGateway:
             def log_message(self, format: str, *args: object) -> None:
                 return
 
-            def _json(self, status: int, payload: dict[str, object]) -> None:
-                body = json.dumps(payload).encode()
+            def _json(self, status: int, payload: object) -> None:
+                body = json.dumps(payload, ensure_ascii=False).encode()
                 self.send_response(status)
-                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Type", "application/json; charset=utf-8")
                 self.send_header("Content-Length", str(len(body)))
                 self.send_header("Cache-Control", "no-store")
                 self.end_headers()
@@ -103,6 +114,15 @@ class HomeBaseGateway:
                     return
                 if self.path == "/state":
                     self._json(200, {"state": gateway._state})
+                    return
+                if self.path == "/runtime":
+                    self._json(200, gateway._runtime_info())
+                    return
+                if self.path == "/activity":
+                    self._json(200, list(gateway._activity_info(25)))
+                    return
+                if self.path == "/devices":
+                    self._json(200, {"text": gateway._device_info()})
                     return
                 if self.path == "/capabilities":
                     self._json(200, gateway._catalog.as_dict())
@@ -149,12 +169,7 @@ class HomeBaseGateway:
                 if not isinstance(command, str) or not command.strip():
                     self._json(400, {"error": "command is required"})
                     return
-                command = command.strip()
-                if command.lower() == "activate":
-                    gateway.events.publish("assistant.state", state="listening", source="homebase.ui")
-                    self._json(200, {"ok": True, "state": "listening"})
-                    return
-                response = gateway.command_handler(command)
+                response = gateway.command_handler(command.strip())
                 self._json(200, {"ok": True, "response": response, "state": gateway._state})
 
         self._server = ThreadingHTTPServer((self.host, self.port), Handler)
