@@ -10,7 +10,7 @@ from jarvis.brain import Brain
 from jarvis.context import ContextBuilder
 from jarvis.control import HomeControl
 from jarvis.decision import DecisionEngine
-from jarvis.devices import DeviceKind, DeviceRegistry
+from jarvis.devices import Device, DeviceKind, DeviceRegistry
 from jarvis.events import EventBus
 from jarvis.gateway import HomeBaseGateway
 from jarvis.homebase import HomeBase, HomeBaseError
@@ -38,7 +38,15 @@ def build_router(homebase: HomeBase, memory: MemoryStore, devices: DeviceRegistr
         parts = argument.strip().split(maxsplit=1)
         action = parts[0].lower() if parts else "status"
         action_argument = parts[1] if len(parts) == 2 else ""
-        aliases = {"open": "open_app", "search": "google_search", "site": "open_site", "navigate": "open_site", "go": "open_site", "window": "window", "win": "window"}
+        aliases = {
+            "open": "open_app",
+            "search": "google_search",
+            "site": "open_site",
+            "navigate": "open_site",
+            "go": "open_site",
+            "window": "window",
+            "win": "window",
+        }
         action = aliases.get(action, action)
         try:
             response = agent.action(action, action_argument)
@@ -108,7 +116,7 @@ def build_router(homebase: HomeBase, memory: MemoryStore, devices: DeviceRegistr
     router.register("devices", "Inspect paired device identities and advertised capabilities", devices_command, aliases=("device", "phones"), capability="system")
 
     def brain_status(_: str) -> str:
-        provider = getattr(Brain().provider, "name", "unknown")
+        provider = provider_from_environment().name
         return f"Configured brain provider: {provider}."
 
     router.register("brain", "Inspect the configured AI brain provider", brain_status, aliases=("ai",))
@@ -125,9 +133,7 @@ def handle_command(
     events: EventBus,
     orchestrator: Orchestrator | None = None,
 ) -> tuple[str, bool]:
-    runtime = orchestrator or Orchestrator(
-        router, brain, decision, context, home_control, HomeBase.load(), events
-    )
+    runtime = orchestrator or Orchestrator(router, brain, decision, context, home_control, HomeBase.load(), events)
     return runtime.handle(command, source="text")
 
 
@@ -208,9 +214,7 @@ def main() -> None:
     local_id = "desktop-local"
     if devices.get(local_id) is None:
         try:
-            devices.register(DeviceKind and __import__("jarvis.devices", fromlist=["Device"]).Device(
-                local_id, "This PC", DeviceKind.DESKTOP, True, ("system", "approved-desktop")
-            ))
+            devices.register(Device(local_id, "This PC", DeviceKind.DESKTOP, True, ("system", "approved-desktop")))
         except ValueError:
             pass
     else:
