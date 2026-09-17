@@ -2,21 +2,27 @@
 
 Personal local-first AI assistant and operating layer.
 
-## Ready-to-use build
+## Ready-to-use Windows build
 
 The current build is designed around one simple Windows flow:
 
 1. Double-click `Install-JARVIS.bat` once.
 2. Add a Gemini API key to `.env` only if you want cloud AI.
-3. Double-click `Start-JARVIS.bat`.
-4. Home Base opens automatically in your default browser.
+3. Restart Windows, or double-click `Start-JARVIS.bat` once to try it immediately.
+4. Home Base opens automatically as a compact J.A.R.V.I.S. desktop companion.
 
-After the first setup, `Start-JARVIS.bat` uses the project's local `.venv` automatically instead of relying on the global Python environment.
+After the first setup, Windows starts J.A.R.V.I.S. automatically when you sign in. The startup launcher runs through the project's local `.venv` with no console window.
+
+To disable automatic startup, run `Disable-JARVIS-Startup.bat`. To enable it again, run `Enable-JARVIS-Startup.bat`.
+
+Set `JARVIS_HOME_MODE=browser` in `.env` when you prefer the normal full browser presentation. The default is the compact desktop companion mode.
 
 ## What is included
 
 - J.A.R.V.I.S. Understand -> Think -> Plan -> Act -> Verify -> Respond orchestration
 - Home Base UI with live runtime state, command input, activity stream, and system status
+- Compact desktop-companion presentation for the Windows launcher
+- Automatic Windows sign-in startup with no terminal window
 - Optional Gemini brain with a deterministic local fallback
 - Persistent local memory
 - Explicit tool/route registry and aliases
@@ -106,31 +112,36 @@ python main.py --voice
 ## Architecture
 
 ```text
-User
-  |
-  v
+Windows sign-in / manual launch
+             |
+             v
+      Desktop Companion
+             |
+             v
 Voice / Text / Home Base
-  |
-  v
+             |
+             v
 J.A.R.V.I.S. Orchestrator
-  |
-  +--> Brain / Memory / Context
-  |
-  +--> Decision / Policy / Confirmation
-  |
-  +--> Tool Router
-          |
-          +--> Computer
-          +--> Browser
-          +--> Web
-          +--> Files
-          +--> System
-          +--> Workflows (n8n)
-          +--> Devices
-          +--> Cybersecurity lab/defensive tooling
-  |
-  v
-Verification -> Audit -> Response -> Home Base
+             |
+     +-------+-------+
+     |               |
+ Brain / Memory   Policy / Confirmation
+     |               |
+     +-------+-------+
+             |
+        Tool Router
+             |
+   +---------+---------+---------+---------+
+   |         |         |         |         |
+Computer  Browser     Web      Devices  Cybersecurity
+   |         |         |         |         |
+   +---------+---------+---------+---------+
+             |
+       Verification
+             |
+           Audit
+             |
+          Response
 ```
 
 The architecture treats model output and external web/workflow data as untrusted input. Tools are explicit capabilities behind policy checks rather than a general-purpose code execution surface.
