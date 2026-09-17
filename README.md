@@ -1,57 +1,85 @@
 # J.A.R.V.I.S.
 
-Personal modular AI assistant project.
+Personal local-first AI assistant and operating layer.
 
-## v0.2
+## Ready-to-use build
 
-J.A.R.V.I.S. now has the first real architecture layer between the user and executable tools:
+The current build is designed around one simple Windows flow:
 
-- deterministic natural-language brain boundary
-- explicit tool/route registry
-- aliases for common commands
-- safe refusal for unknown tools
-- time/date/status tools
-- optional voice input/output
-- standard-library unit tests
-- no API keys or passwords committed to the repository
-- no computer-control or browser-automation packages installed yet
+1. Double-click `Install-JARVIS.bat` once.
+2. Add a Gemini API key to `.env` only if you want cloud AI.
+3. Double-click `Start-JARVIS.bat`.
+4. Home Base opens automatically in your default browser.
 
-The current brain is intentionally local and deterministic. It is **not** the final AI model. It gives us a stable interface so a real model provider can be plugged in later without rewriting the tool layer.
+After the first setup, `Start-JARVIS.bat` uses the project's local `.venv` automatically instead of relying on the global Python environment.
 
-## Run
+## What is included
 
-```bash
-python main.py
-```
+- J.A.R.V.I.S. Understand -> Think -> Plan -> Act -> Verify -> Respond orchestration
+- Home Base UI with live runtime state, command input, activity stream, and system status
+- Optional Gemini brain with a deterministic local fallback
+- Persistent local memory
+- Explicit tool/route registry and aliases
+- Allowlisted Windows app and window control through the local loopback agent
+- Allowlisted Edge/Google search and approved-site navigation
+- Bounded web/file capabilities
+- Optional n8n workflow bridge through one operator-configured Webhook endpoint
+- Persistent device identity/capability metadata without storing credentials
+- Local audit logging with common secret-field redaction
+- Loopback-only local services and bounded request/response sizes
+- Confirmation gates for state-changing computer and workflow actions
+- Stale Local Agent protocol detection so an old process cannot silently satisfy the launcher
+- Security headers and JSON-only command input on the Home Base gateway
 
-Try commands such as:
+The project deliberately does **not** enable arbitrary shell commands, arbitrary Python execution, unrestricted browser automation, unrestricted keyboard/mouse control, or arbitrary destination URLs.
+
+PyAutoGUI, BeautifulSoup, and Selenium remain uninstalled until bounded adapters are deliberately designed.
+
+## Commands
+
+Examples:
 
 ```text
-What time is it?
-Tell me the date
-Are you online?
-What can you do?
 help
+status
+time
+date
+brain
+remember favorite color = sea green
+recall favorite color
+memories
+files
+read README.md
+diagnostics
+devices
+pc apps
+pc sites
+pc open edge
+pc search weather
+pc site github
+pc window edge focus
+workflow status
+workflow <task>
 exit
 ```
 
-Run the tests without third-party test packages:
+State-changing commands such as opening applications, controlling windows, navigating to approved sites, and triggering workflows require a one-time confirmation. J.A.R.V.I.S. reports the confirmation command in the response and expires unused confirmations automatically.
 
-```bash
-python -m unittest discover -s tests -v
+## Gemini
+
+Gemini is optional. Keep the default `JARVIS_BRAIN_PROVIDER=deterministic` for a fully local fallback, or set:
+
+```text
+JARVIS_BRAIN_PROVIDER=gemini
+GEMINI_API_KEY=your-key-here
+JARVIS_GEMINI_MODEL=gemini-3.8-flash
 ```
 
-Optional voice mode remains available when the voice dependencies are installed:
-
-```bash
-python main.py --voice
-```
+Never commit `.env` or real API keys to Git.
 
 ## n8n workflow bridge
 
-J.A.R.V.I.S. can optionally hand a task to **one operator-configured n8n Webhook workflow**. The integration is disabled unless `JARVIS_N8N_WEBHOOK_URL` is set.
-
-Set the following environment variables locally (never commit the real values):
+J.A.R.V.I.S. can optionally hand a task to **one operator-configured n8n Webhook workflow**. The bridge stays disabled when `JARVIS_N8N_WEBHOOK_URL` is blank.
 
 ```text
 JARVIS_N8N_WEBHOOK_URL=https://your-n8n-host/webhook/jarvis
@@ -59,17 +87,21 @@ JARVIS_N8N_WEBHOOK_TOKEN=optional-shared-secret
 JARVIS_N8N_TIMEOUT_SECONDS=20
 ```
 
-Then use:
+The endpoint must be HTTPS or loopback HTTP. Requests and responses are bounded, and the command itself cannot supply a destination URL.
 
-```text
-workflow <task>
-n8n <task>
-automate <task>
+## Tests
+
+Run the standard-library test suite with:
+
+```bash
+python -m unittest discover -s tests -v
 ```
 
-JARVIS sends a bounded JSON body containing the source and task text. The bridge does **not** accept arbitrary URLs from commands; endpoints must be HTTPS or loopback HTTP. Responses are size-limited before being returned to the assistant.
+Voice mode is optional and depends on the installed speech/audio stack:
 
-A practical first n8n workflow is a read-oriented automation that accepts the incoming `command` field, performs a bounded sequence of API or data steps, and returns a small JSON object such as `{"result":"..."}`. n8n Webhook nodes support production URLs and can be configured with authentication such as Header auth. See the n8n webhook documentation for the workflow-side configuration.
+```bash
+python main.py --voice
+```
 
 ## Architecture
 
@@ -77,29 +109,34 @@ A practical first n8n workflow is a read-oriented automation that accepts the in
 User
   |
   v
-Voice / Text Interface
+Voice / Text / Home Base
   |
   v
-AI Brain (currently deterministic; LLM comes later)
+J.A.R.V.I.S. Orchestrator
+  |
+  +--> Brain / Memory / Context
+  |
+  +--> Decision / Policy / Confirmation
+  |
+  +--> Tool Router
+          |
+          +--> Computer
+          +--> Browser
+          +--> Web
+          +--> Files
+          +--> System
+          +--> Workflows (n8n)
+          +--> Devices
+          +--> Cybersecurity lab/defensive tooling
   |
   v
-Tool Router / Registry
-  |
-  +-- Computer Tools
-  +-- Web Tools
-  +-- File Tools
-  +-- System Tools
-  +-- Memory Tools
-  +-- n8n Workflow Bridge ----> n8n Webhook --> workflow nodes/integrations
-  `-- Device Tools
+Verification -> Audit -> Response -> Home Base
 ```
 
-### Safety direction
+The architecture treats model output and external web/workflow data as untrusted input. Tools are explicit capabilities behind policy checks rather than a general-purpose code execution surface.
 
-Tools will be explicit capabilities, not arbitrary code execution. Actions that can change files, applications, devices, or other external state will use allowlists and confirmation gates where appropriate.
+## Security direction
 
-The n8n bridge follows the same local-first principle: no arbitrary command execution, no user-supplied destination URLs, bounded request/response sizes, and secrets kept outside the repository.
+J.A.R.V.I.S. is intended to grow into a serious cybersecurity assistant for systems and labs the operator owns or is authorized to test. The repository's `SECURITY.md` maps the current baseline to relevant secure-coding and AI-security issue classes.
 
-PyAutoGUI, BeautifulSoup, and Selenium are planned for the tool layer later; they are deliberately **not installed yet**.
-
-API keys and passwords must stay outside the repository, using environment variables or a proper secrets store when external AI/web services are added.
+It is intentionally not a credential-stealing, covert-monitoring, unrestricted intrusion, or arbitrary-code-execution framework.
