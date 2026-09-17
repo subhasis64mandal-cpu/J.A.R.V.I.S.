@@ -1,9 +1,8 @@
 """Core J.A.R.V.I.S. orchestration pipeline.
 
-The orchestrator keeps the runtime phases explicit:
 Understand -> Think -> Plan -> Act -> Verify -> Respond.
-Only registered router commands are executable. Potentially state-changing
-computer/workflow commands receive a single-use confirmation token first.
+Only registered router commands are executable. State-changing computer and
+workflow commands receive a single-use confirmation token first.
 """
 
 from __future__ import annotations
@@ -65,7 +64,7 @@ class Orchestrator:
 
     def _needs_confirmation(self, target: str | None, argument: str) -> bool:
         if target in self.WORKFLOW_ROUTES:
-            return True
+            return argument.strip().lower() not in {"", "status", "health"}
         if target != "pc":
             return False
         action = argument.strip().lower().split(maxsplit=1)[0] if argument.strip() else "status"
@@ -123,7 +122,9 @@ class Orchestrator:
             confidence=proposal.confidence,
         )
 
-        if proposal.action == "HOME":
+        if normalized == "help":
+            response = self.router.help_text() + "\n\n" + self.home_control.help_text()
+        elif proposal.action == "HOME":
             response = self.home_control.execute(proposal.target or "status")
         elif proposal.action == "ROUTE":
             target = proposal.target
@@ -134,13 +135,17 @@ class Orchestrator:
                 return response, True
             self._set_state("executing", target=target or "")
             response = self.router.route(self.brain.normalize(command))
-            self.events.publish("assistant.execution", target=target, ok=not response.lower().endswith("failed safely."))
+            ok = not any(marker in response.lower() for marker in ("failed safely", "denied safely", "unavailable", "does not allow"))
+            self.events.publish("assistant.execution", target=target, ok=ok)
+            self.audit.record("execution.completed", target=target, ok=ok)
         else:
             self._set_state("executing", target="brain")
             try:
                 response = self.brain.generate(command, runtime_context.as_system_context())
+                self.audit.record("brain.completed", provider=getattr(self.brain.provider, "name", "unknown"))
             except Exception as exc:
                 response = f"I couldn't reach the configured brain provider safely: {exc}"
+                self.audit.record("brain.failed", error=str(exc))
 
         self._set_state("speaking")
         self.events.publish("assistant.response", response=response)
@@ -154,11 +159,11 @@ class Orchestrator:
         if not text:
             return "I didn't catch a command.", True
         lowered = text.lower()
-        if lowered.startswith("confirm "):
+        if lowered.startswith("confirm ") and len(text.split(maxsplit=1)) == 2:
             return self._confirm(text.split(maxsplit=1)[1])
         if lowered == "pending confirmations":
             self._prune_confirmations()
-            return (f"Pending confirmations: {len(self._pending)}", True)
+            return f"Pending confirmations: {len(self._pending)}", True
         return self._execute(text)
 
     def runtime_info(self) -> dict[str, object]:
