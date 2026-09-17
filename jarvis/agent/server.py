@@ -18,6 +18,7 @@ from jarvis.desktop import (
 )
 from jarvis.tools import get_date, get_time, system_status
 
+AGENT_PROTOCOL_VERSION = 6
 MAX_BODY_BYTES = 8_192
 
 
@@ -27,6 +28,7 @@ def _hostname(_: str) -> str: return socket.gethostname()
 def _open_app(argument: str) -> str: return open_approved_app(argument)
 def _open_site(argument: str) -> str: return open_approved_site(argument)
 def _window(argument: str) -> str: return manage_approved_window(argument)
+
 
 AGENT_ACTIONS = {
     "time": get_time, "date": get_date, "status": _safe_status, "machine": _machine,
@@ -52,7 +54,7 @@ def handle_action(action: str, argument: str = "") -> dict[str, Any]:
 
 
 class _Handler(BaseHTTPRequestHandler):
-    server_version = "JARVISLocalAgent/0.5"
+    server_version = "JARVISLocalAgent/0.6"
 
     def _send_json(self, status: int, payload: dict[str, Any]) -> None:
         encoded = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -65,10 +67,22 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         if self.path == "/health":
-            self._send_json(200, {"ok": True, "service": "jarvis-local-agent", "version": 5})
+            self._send_json(200, {
+                "ok": True,
+                "service": "jarvis-local-agent",
+                "version": AGENT_PROTOCOL_VERSION,
+                "actions": sorted(AGENT_ACTIONS),
+            })
             return
         if self.path == "/capabilities":
-            self._send_json(200, {"ok": True, "actions": sorted(AGENT_ACTIONS), "arbitrary_commands": False, "desktop_control": "allowlisted-apps-and-windows", "browser_navigation": "edge-allowlisted-sites"})
+            self._send_json(200, {
+                "ok": True,
+                "version": AGENT_PROTOCOL_VERSION,
+                "actions": sorted(AGENT_ACTIONS),
+                "arbitrary_commands": False,
+                "desktop_control": "allowlisted-apps-and-windows",
+                "browser_navigation": "edge-allowlisted-sites",
+            })
             return
         self._send_json(404, {"ok": False, "error": "Not found."})
 
@@ -103,11 +117,17 @@ class _Handler(BaseHTTPRequestHandler):
 
 class LocalAgentServer:
     """Start a local-only J.A.R.V.I.S. agent server."""
+
     def __init__(self, host: str = "127.0.0.1", port: int = 8766) -> None:
-        if host not in {"127.0.0.1", "localhost"}: raise ValueError("LocalAgentServer must bind to loopback.")
+        if host not in {"127.0.0.1", "localhost"}:
+            raise ValueError("LocalAgentServer must bind to loopback.")
         self.address = (host, port)
         self._server = ThreadingHTTPServer(self.address, _Handler)
         self._server.daemon_threads = True
-    def start(self) -> None: self._server.serve_forever(poll_interval=0.2)
+
+    def start(self) -> None:
+        self._server.serve_forever(poll_interval=0.2)
+
     def stop(self) -> None:
-        self._server.shutdown(); self._server.server_close()
+        self._server.shutdown()
+        self._server.server_close()
