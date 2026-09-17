@@ -13,6 +13,7 @@ from jarvis.events import EventBus
 from jarvis.gateway import HomeBaseGateway
 from jarvis.homebase import HomeBase, HomeBaseError
 from jarvis.memory import MemoryStore
+from jarvis.n8n import N8nUnavailable, N8nWorkflowClient
 from jarvis.router import Router
 from jarvis.safe_tools import CapabilityError, fetch_web, host_diagnostics, list_files, read_file
 from jarvis.tools import get_date, get_time, system_status
@@ -25,6 +26,7 @@ def build_router(homebase: HomeBase, memory: MemoryStore) -> Router:
     router.register("date", "Show today's date", get_date, aliases=("day",))
     router.register("status", "Show assistant status", system_status, aliases=("health",))
     agent = LocalAgentClient()
+    n8n = N8nWorkflowClient()
 
     def pc(argument: str) -> str:
         parts = argument.strip().split(maxsplit=1)
@@ -43,6 +45,14 @@ def build_router(homebase: HomeBase, memory: MemoryStore) -> Router:
         return response.result if response.ok else (response.error or "The local PC action failed safely.")
 
     router.register("pc", "Query or control approved Windows capabilities through the local agent", pc, aliases=("computer", "localpc"), capability="system")
+
+    def workflow(argument: str) -> str:
+        try:
+            return n8n.trigger(argument)
+        except N8nUnavailable as exc:
+            return f"n8n workflow unavailable: {exc}"
+
+    router.register("workflow", "Trigger the single operator-configured n8n workflow", workflow, aliases=("n8n", "automate"), capability="system")
 
     def files(argument: str) -> str:
         try: return list_files(argument)
@@ -96,7 +106,7 @@ def handle_command(router: Router, brain: Brain, decision: DecisionEngine, conte
 
 def run_text(router: Router, brain: Brain, decision: DecisionEngine, context: ContextBuilder, home_control: HomeControl, homebase: HomeBase, events: EventBus) -> None:
     print(f"{homebase.assistant_name()} — online")
-    print("Home Base: loaded | Try 'pc machine', 'pc apps', 'pc window edge focus', 'pc search weather', or 'help'.")
+    print("Home Base: loaded | Try 'pc machine', 'pc apps', 'pc window edge focus', 'pc search weather', 'workflow <task>', or 'help'.")
     events.publish("assistant.state", state="idle")
     while True:
         try: command = input("You > ").strip()
