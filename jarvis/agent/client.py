@@ -7,6 +7,10 @@ from dataclasses import dataclass
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+
+EXPECTED_AGENT_VERSION = 6
+
+
 @dataclass(frozen=True)
 class AgentResponse:
     ok: bool
@@ -14,36 +18,65 @@ class AgentResponse:
     result: str = ""
     error: str = ""
 
+
 class LocalAgentUnavailable(RuntimeError):
     """Raised when the local agent cannot be reached safely."""
 
+
 class LocalAgentClient:
     """Call only the J.A.R.V.I.S. Local Agent on loopback."""
+
+    ALLOWED = frozenset({"time", "date", "status", "machine", "hostname", "apps", "sites", "open_app", "open_site", "google_search", "window"})
+
     def __init__(self, base_url: str = "http://127.0.0.1:8766", timeout: float = 1.5) -> None:
-        if base_url.rstrip("/") != "http://127.0.0.1:8766": raise ValueError("LocalAgentClient must target the J.A.R.V.I.S. loopback endpoint.")
-        if timeout <= 0 or timeout > 10: raise ValueError("Timeout must be between 0 and 10 seconds.")
+        if base_url.rstrip("/") != "http://127.0.0.1:8766":
+            raise ValueError("LocalAgentClient must target the J.A.R.V.I.S. loopback endpoint.")
+        if timeout <= 0 or timeout > 10:
+            raise ValueError("Timeout must be between 0 and 10 seconds.")
         self.base_url, self.timeout = base_url.rstrip("/"), timeout
-    def health(self) -> bool: return bool(self._get("/health").get("ok"))
+
+    def health(self) -> bool:
+        payload = self._get("/health")
+        return bool(payload.get("ok")) and payload.get("version") == EXPECTED_AGENT_VERSION
+
     def capabilities(self) -> tuple[str, ...]:
-        actions = self._get("/capabilities").get("actions", [])
-        if not isinstance(actions, list) or not all(isinstance(item, str) for item in actions): raise LocalAgentUnavailable("Agent returned an invalid capability list.")
+        payload = self._get("/capabilities")
+        version = payload.get("version")
+        if version is not None and version != EXPECTED_AGENT_VERSION:
+            raise LocalAgentUnavailable("Local J.A.R.V.I.S. agent protocol version is stale.")
+        actions = payload.get("actions", [])
+        if not isinstance(actions, list) or not all(isinstance(item, str) for item in actions):
+            raise LocalAgentUnavailable("Agent returned an invalid capability list.")
         return tuple(actions)
+
     def action(self, action: str, argument: str = "") -> AgentResponse:
         normalized = action.strip().lower()
-        allowed = {"time","date","status","machine","hostname","apps","sites","open_app","open_site","google_search","window"}
-        if normalized not in allowed: raise ValueError("LocalAgentClient action is not allowlisted.")
-        if len(argument) > 1024: raise ValueError("Agent argument is too long.")
+        if normalized not in self.ALLOWED:
+            raise ValueError("LocalAgentClient action is not allowlisted.")
+        if len(argument) > 1024:
+            raise ValueError("Agent argument is too long.")
+        if not self.health():
+            raise LocalAgentUnavailable("Local J.A.R.V.I.S. agent is unavailable or stale.")
         payload = self._post("/action", {"action": normalized, "argument": argument})
         return AgentResponse(bool(payload.get("ok")), str(payload.get("action", normalized)), str(payload.get("result", "")), str(payload.get("error", "")))
-    def _get(self, path: str) -> dict[str, object]: return self._request(Request(f"{self.base_url}{path}", method="GET"))
+
+    def _get(self, path: str) -> dict[str, object]:
+        return self._request(Request(f"{self.base_url}{path}", method="GET"))
+
     def _post(self, path: str, body: dict[str, object]) -> dict[str, object]:
         encoded = json.dumps(body).encode("utf-8")
-        return self._request(Request(f"{self.base_url}{path}", data=encoded, headers={"Content-Type":"application/json"}, method="POST"))
+        return self._request(Request(f"{self.base_url}{path}", data=encoded, headers={"Content-Type": "application/json"}, method="POST"))
+
     def _request(self, request: Request) -> dict[str, object]:
         try:
-            with urlopen(request, timeout=self.timeout) as response: raw = response.read(8192)
-        except (HTTPError, URLError, TimeoutError, OSError) as exc: raise LocalAgentUnavailable("Local J.A.R.V.I.S. agent is unavailable.") from exc
-        try: payload = json.loads(raw.decode("utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError) as exc: raise LocalAgentUnavailable("Local agent returned invalid JSON.") from exc
-        if not isinstance(payload, dict): raise LocalAgentUnavailable("Local agent returned an invalid response.")
+            with urlopen(request, timeout=self.timeout) as response:
+                raw = response.read(8192)
+        except (HTTPError, URLError, TimeoutError, OSError) as exc:
+            raise LocalAgentUnavailable("Local J.A.R.V.I.S. agent is unavailable.") from exc
+        try:
+            payload = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise LocalAgentUnavailable("Local agent returned invalid JSON.") from exc
+        if not isinstance(payload, dict):
+            raise LocalAgentUnavailable("Local agent returned an invalid response.")
         return payload
